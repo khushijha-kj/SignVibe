@@ -1,4 +1,5 @@
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
 
 // Helper: Validate signup data by role
@@ -111,12 +112,10 @@ exports.login = async (req, res) => {
       typeof role !== "string" ||
       !["student", "teacher", "parent", "admin"].includes(role)
     ) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Role is required and must be one of student, teacher, parent, admin.",
-        });
+      return res.status(400).json({
+        error:
+          "Role is required and must be one of student, teacher, parent, admin.",
+      });
     }
 
     const user = await User.findOne({ email, role });
@@ -132,6 +131,21 @@ exports.login = async (req, res) => {
         .status(401)
         .json({ error: "Invalid email, password, or role." });
     }
+
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      process.env.JWT_SECRET || "default_jwt_secret",
+      { expiresIn: "7d" }
+    );
+
+    // Set token as HTTP-only cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
 
     // Only return non-sensitive info
     const userObj = user.toObject();
