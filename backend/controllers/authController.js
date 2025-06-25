@@ -91,3 +91,53 @@ exports.signup = async (req, res) => {
     res.status(500).json({ error: "Server error", details: err.message });
   }
 };
+
+// Login controller
+exports.login = async (req, res) => {
+  try {
+    const { email, password, role } = req.body;
+    if (!email || typeof email !== "string") {
+      return res
+        .status(400)
+        .json({ error: "Email is required and must be a string." });
+    }
+    if (!password || typeof password !== "string") {
+      return res
+        .status(400)
+        .json({ error: "Password is required and must be a string." });
+    }
+    if (
+      !role ||
+      typeof role !== "string" ||
+      !["student", "teacher", "parent", "admin"].includes(role)
+    ) {
+      return res
+        .status(400)
+        .json({
+          error:
+            "Role is required and must be one of student, teacher, parent, admin.",
+        });
+    }
+
+    const user = await User.findOne({ email, role });
+    if (!user) {
+      return res
+        .status(401)
+        .json({ error: "Invalid email, password, or role." });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res
+        .status(401)
+        .json({ error: "Invalid email, password, or role." });
+    }
+
+    // Only return non-sensitive info
+    const userObj = user.toObject();
+    delete userObj.password;
+    res.status(200).json({ message: "Login successful", user: userObj });
+  } catch (err) {
+    res.status(500).json({ error: "Server error", details: err.message });
+  }
+};
